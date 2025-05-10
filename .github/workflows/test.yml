@@ -1,0 +1,61 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    # Set up Go environment
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22.1'  # Change Go version as needed
+        cache: true
+
+    # Download and install WABT toolkit
+    - name: Install WABT
+      run: |
+        wget https://github.com/WebAssembly/wabt/releases/download/1.0.37/wabt-1.0.37-ubuntu-20.04.tar.gz
+        mkdir -p ~/.local/wabt
+        tar -xzf wabt-1.0.37-ubuntu-20.04.tar.gz -C ~/.local/wabt --strip-components=1
+        echo "$HOME/.local/wabt/bin" >> $GITHUB_PATH
+      
+    # Verify WABT tools installation
+    - name: Verify WABT installation
+      run: |
+        which wast2json
+        which wat2wasm
+        wast2json --version || echo "wast2json installed"
+
+    # Fetch Go dependencies
+    - name: Get dependencies
+      run: go mod download
+
+    # Build the project
+    - name: Build
+      run: go build -v ./...
+
+    # Run tests with WABT tools
+    - name: Test with WABT
+      run: |
+        # Ensure WABT tools are in PATH
+        export PATH=$HOME/.local/wabt/bin:$PATH
+        
+        # Print WABT tools directory structure
+        echo "WABT tools directory structure:"
+        ls -la $HOME/.local/wabt/bin
+        
+        # Print current directory structure
+        echo "Current directory structure:"
+        ls -la
+        
+        # Execute tests
+        make test
